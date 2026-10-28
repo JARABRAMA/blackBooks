@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { demoBooks } from "@/lib/demo-data";
 import { availabilityFromCopies } from "@/lib/format";
 import type { Book } from "@/lib/types";
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui";
 
 export default function CatalogoPage() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,9 +29,15 @@ export default function CatalogoPage() {
   async function loadBooks() {
     setLoading(true);
     try {
-      const res = await fetch("/api/books");
+      if (isDemo) {
+        setBooks(demoBooks);
+        return;
+      }
+      const res = await fetch("/api/books", { signal: AbortSignal.timeout(4000) });
       const data = await res.json();
       setBooks(data.books ?? []);
+    } catch {
+      setBooks(isDemo ? demoBooks : []);
     } finally {
       setLoading(false);
     }
@@ -38,7 +45,8 @@ export default function CatalogoPage() {
 
   useEffect(() => {
     loadBooks();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,6 +63,13 @@ export default function CatalogoPage() {
     setMessage(null);
     setReservingId(bookId);
     try {
+      if (isDemo) {
+        setMessage({
+          tone: "success",
+          text: "Reserva simulada (modo demo). Con base de datos se guardará de verdad.",
+        });
+        return;
+      }
       const res = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

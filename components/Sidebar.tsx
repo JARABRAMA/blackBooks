@@ -24,7 +24,7 @@ type SidebarProps = {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isDemo } = useAuth();
   const links = user?.role === "ADMIN" ? adminLinks : userLinks;
 
   return (
@@ -74,6 +74,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               </p>
               <p className="truncate text-xs text-slate-400">
                 {user?.role === "ADMIN" ? "Administrador" : "Lector"}
+                {isDemo ? " · Demo" : ""}
               </p>
             </div>
           </div>

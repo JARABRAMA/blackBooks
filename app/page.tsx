@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
+  const { enterDemo } = useAuth();
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
       <div
@@ -40,6 +45,29 @@ export default function Home() {
           >
             Crear cuenta
           </Link>
+        </div>
+
+        <div className="mt-10 max-w-xl rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-medium text-teal-200">Vista previa de UI</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Sin base de datos ni cuenta: entra en modo demo para recorrer pantallas.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => enterDemo("ADMIN")}
+              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            >
+              Ver UI Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => enterDemo("USER")}
+              className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Ver UI Lector
+            </button>
+          </div>
         </div>
       </main>
     </div>

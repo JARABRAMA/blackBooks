@@ -13,10 +13,13 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { demoLoans, demoReservations } from "@/lib/demo-data";
 import { formatDate } from "@/lib/format";
 import type { Loan, Reservation } from "@/lib/types";
 
 export default function PrestamosDevolucionesPage() {
+  const { isDemo } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +31,14 @@ export default function PrestamosDevolucionesPage() {
   async function load() {
     setLoading(true);
     try {
+      if (isDemo) {
+        setLoans(demoLoans);
+        setReservations(demoReservations.filter((r) => r.status === "PENDING"));
+        return;
+      }
       const [loansRes, reservationsRes] = await Promise.all([
-        fetch("/api/admin/loans"),
-        fetch("/api/admin/reservations"),
+        fetch("/api/admin/loans", { signal: AbortSignal.timeout(4000) }),
+        fetch("/api/admin/reservations", { signal: AbortSignal.timeout(4000) }),
       ]);
       const loansData = await loansRes.json();
       const reservationsData = await reservationsRes.json();
@@ -40,6 +48,9 @@ export default function PrestamosDevolucionesPage() {
           (r: Reservation) => r.status === "PENDING"
         )
       );
+    } catch {
+      setLoans([]);
+      setReservations([]);
     } finally {
       setLoading(false);
     }
@@ -47,12 +58,18 @@ export default function PrestamosDevolucionesPage() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   async function fulfillReservation(reservation: Reservation) {
     setMessage(null);
     setBusyId(reservation.id);
     try {
+      if (isDemo) {
+        setMessage({ tone: "success", text: "Préstamo simulado (modo demo)." });
+        setReservations((prev) => prev.filter((r) => r.id !== reservation.id));
+        return;
+      }
       const res = await fetch("/api/loans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,6 +97,17 @@ export default function PrestamosDevolucionesPage() {
     setMessage(null);
     setBusyId(loanId);
     try {
+      if (isDemo) {
+        setMessage({ tone: "success", text: "Devolución simulada (modo demo)." });
+        setLoans((prev) =>
+          prev.map((loan) =>
+            loan.id === loanId
+              ? { ...loan, status: "RETURNED", returnDate: new Date().toISOString() }
+              : loan
+          )
+        );
+        return;
+      }
       const res = await fetch(`/api/loans/${loanId}/return`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {

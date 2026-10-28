@@ -11,6 +11,8 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { demoLoans, demoReservations } from "@/lib/demo-data";
 import { formatDate } from "@/lib/format";
 import type { Loan, Reservation } from "@/lib/types";
 
@@ -28,6 +30,7 @@ function reservationTone(status: Reservation["status"]) {
 }
 
 export default function MisPrestamosPage() {
+  const { isDemo } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,20 +38,28 @@ export default function MisPrestamosPage() {
   useEffect(() => {
     async function load() {
       try {
+        if (isDemo) {
+          setLoans(demoLoans);
+          setReservations(demoReservations);
+          return;
+        }
         const [loansRes, reservationsRes] = await Promise.all([
-          fetch("/api/loans"),
-          fetch("/api/reservations"),
+          fetch("/api/loans", { signal: AbortSignal.timeout(4000) }),
+          fetch("/api/reservations", { signal: AbortSignal.timeout(4000) }),
         ]);
         const loansData = await loansRes.json();
         const reservationsData = await reservationsRes.json();
         setLoans(loansData.loans ?? []);
         setReservations(reservationsData.reservations ?? []);
+      } catch {
+        setLoans([]);
+        setReservations([]);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [isDemo]);
 
   return (
     <AuthGuard roles={["USER"]}>

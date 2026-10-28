@@ -14,6 +14,8 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { demoTransactions } from "@/lib/demo-data";
 import { formatDateTime } from "@/lib/format";
 import type { Transaction, TransactionType } from "@/lib/types";
 
@@ -24,6 +26,7 @@ function typeTone(type: TransactionType) {
 }
 
 export default function ReportesPage() {
+  const { isDemo } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<"ALL" | TransactionType>("ALL");
@@ -32,15 +35,23 @@ export default function ReportesPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/admin/transactions");
+        if (isDemo) {
+          setTransactions(demoTransactions);
+          return;
+        }
+        const res = await fetch("/api/admin/transactions", {
+          signal: AbortSignal.timeout(4000),
+        });
         const data = await res.json();
         setTransactions(data.transactions ?? []);
+      } catch {
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [isDemo]);
 
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {

@@ -16,10 +16,13 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { demoUsers } from "@/lib/demo-data";
 import { formatDate } from "@/lib/format";
 import type { AdminUser, UserRole } from "@/lib/types";
 
 export default function UsuariosPage() {
+  const { isDemo } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AdminUser | null>(null);
@@ -31,9 +34,17 @@ export default function UsuariosPage() {
   async function loadUsers() {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/users");
+      if (isDemo) {
+        setUsers(demoUsers);
+        return;
+      }
+      const res = await fetch("/api/admin/users", {
+        signal: AbortSignal.timeout(4000),
+      });
       const data = await res.json();
       setUsers(data.users ?? []);
+    } catch {
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -41,7 +52,8 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   function openEdit(user: AdminUser) {
     setSelected(user);
@@ -56,6 +68,14 @@ export default function UsuariosPage() {
     setError("");
     setSuccess("");
     try {
+      if (isDemo) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === selected.id ? { ...u, role } : u))
+        );
+        setSuccess("Rol actualizado (modo demo).");
+        setSelected(null);
+        return;
+      }
       const res = await fetch(`/api/admin/users/${selected.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

@@ -15,10 +15,13 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { demoBooks } from "@/lib/demo-data";
 import { availabilityFromCopies } from "@/lib/format";
 import type { Book } from "@/lib/types";
 
 export default function InventarioPage() {
+  const { isDemo } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -36,9 +39,15 @@ export default function InventarioPage() {
   async function loadBooks() {
     setLoading(true);
     try {
-      const res = await fetch("/api/books");
+      if (isDemo) {
+        setBooks(demoBooks);
+        return;
+      }
+      const res = await fetch("/api/books", { signal: AbortSignal.timeout(4000) });
       const data = await res.json();
       setBooks(data.books ?? []);
+    } catch {
+      setBooks([]);
     } finally {
       setLoading(false);
     }
@@ -46,7 +55,8 @@ export default function InventarioPage() {
 
   useEffect(() => {
     loadBooks();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo]);
 
   function resetForm() {
     setForm({ title: "", author: "", category: "", isbn: "", copies: "1" });
@@ -59,6 +69,12 @@ export default function InventarioPage() {
     setSuccess("");
     setSaving(true);
     try {
+      if (isDemo) {
+        setSuccess("Libro simulado agregado (modo demo).");
+        setOpen(false);
+        resetForm();
+        return;
+      }
       const res = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
