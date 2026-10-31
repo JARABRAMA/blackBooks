@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum BookCopyStatus {
+  AVAILABLE
+  RESERVED
+  LOANED
+  DAMAGED
+  LOST
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+}
+
+enum TransactionType {
+  RESERVATION
+  LOAN
+  RETURN
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  surnames    String
+  dni         String   @unique
+  email       String   @unique
+  phoneNumber String
+  birthDay    DateTime
+  image       String?
+  role        UserRole @default(USER)
+  password    String // Hashed - never expose to the client
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations Reservation[]
+  loans         Loan[]
+  transactions  Transaction[] @relation("TransactionActor")
+}
+
+model Book {
+  id          String   @id @default(cuid())
+  title       String
+  author      String
+  category    String
+  isbn        String?  @unique
+  description String?  @db.Text
+  coverImage  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  copies BookCopy[]
+}
+
+model BookCopy {
+  id        String         @id @default(cuid())
+  bookId    String
+  book      Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  code      String         @unique // Código único del ejemplar para el inventario
+  status    BookCopyStatus @default(AVAILABLE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  reservations Reservation[]
+  loans         Loan[]
+}
+
+model Reservation {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  copyId      String
+  copy        BookCopy          @relation(fields: [copyId], references: [id], onDelete: Cascade)
+  status      ReservationStatus @default(PENDING)
+  reservedAt  DateTime          @default(now())
+  expiresAt   DateTime?
+  fulfilledAt DateTime?
+  cancelledAt DateTime?
+
+  loan Loan?
+}
+
+model Loan {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  copyId        String
+  copy          BookCopy   @relation(fields: [copyId], references: [id], onDelete: Cascade)
+  reservationId String?    @unique
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  loanDate      DateTime   @default(now())
+  dueDate       DateTime
+  returnDate    DateTime?
+  status        LoanStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  transaction Transaction?
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  type      TransactionType
+  loanId    String?         @unique
+  loan      Loan?           @relation(fields: [loanId], references: [id])
+  actorId   String
+  actor     User            @relation("TransactionActor", fields: [actorId], references: [id])
+  notes     String?
+  createdAt DateTime        @default(now())
+}

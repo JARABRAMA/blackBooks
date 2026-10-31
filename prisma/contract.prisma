@@ -99,6 +99,7 @@ model Reservation {
   cancelledAt DateTime?
 
   loan Loan?
+  transactions Transaction[]
 }
 
 model Loan {
@@ -116,16 +117,20 @@ model Loan {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  transaction Transaction?
+  transactions Transaction[]
 }
 
 model Transaction {
   id        String          @id @default(cuid())
   type      TransactionType
-  loanId    String?         @unique
-  loan      Loan?           @relation(fields: [loanId], references: [id])
+  loanId        String?
+  loan          Loan?           @relation(fields: [loanId], references: [id])
+  reservationId String?
+  reservation   Reservation?    @relation(fields: [reservationId], references: [id])
   actorId   String
   actor     User            @relation("TransactionActor", fields: [actorId], references: [id])
   notes     String?
   createdAt DateTime        @default(now())
+
+  @@index([reservationId])
 }

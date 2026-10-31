@@ -101,6 +101,11 @@ export type Transaction = {
     surnames: string;
     email: string;
   };
+  reservation?: {
+    id: string;
+    user: { id: string; name: string; surnames: string; email: string };
+    copy: { id: string; code: string; book: { id: string; title: string; author: string } };
+  } | null;
   loan?: {
     id: string;
     user: {

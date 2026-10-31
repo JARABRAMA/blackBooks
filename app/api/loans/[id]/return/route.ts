@@ -1,69 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
+import { getSessionUser } from "@/lib/server-auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = request.cookies.get("token")?.value;
+    const session = await getSessionUser(request);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (session.role !== "ADMIN") return NextResponse.json({ error: "No tienes permisos para registrar devoluciones" }, { status: 403 });
+    const { id } = await params;
 
-    if (!token) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const loan = await tx.loan.findUnique({ where: { id } });
+      if (!loan) throw new Error("LOAN_NOT_FOUND");
+      if (loan.status === "RETURNED" || loan.returnDate) throw new Error("ALREADY_RETURNED");
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-
-    if (decoded.role !== "ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    const loan = await prisma.loan.findUnique({
-      where: { id: params.id },
+      const now = new Date();
+      const isOverdue = now > loan.dueDate;
+      await tx.loan.update({ where: { id }, data: { status: "RETURNED", returnDate: now } });
+      await tx.bookCopy.update({ where: { id: loan.copyId }, data: { status: "AVAILABLE" } });
+      await tx.transaction.create({
+        data: { type: "RETURN", loanId: loan.id, actorId: session.id, notes: isOverdue ? "Devolución con retraso" : "Devolución a tiempo" },
+      });
+      return { isOverdue };
     });
 
-    if (!loan) {
-      return NextResponse.json({ error: "Préstamo no encontrado" }, { status: 404 });
-    }
-
-    if (loan.status === "RETURNED") {
-      return NextResponse.json({ error: "Este préstamo ya fue devuelto" }, { status: 400 });
-    }
-
-    const now = new Date();
-    const isOverdue = now > loan.dueDate;
-
-    await prisma.loan.update({
-      where: { id: params.id },
-      data: {
-        status: isOverdue ? "OVERDUE" : "RETURNED",
-        returnDate: now,
-      },
-    });
-
-    await prisma.bookCopy.update({
-      where: { id: loan.copyId },
-      data: { status: "AVAILABLE" },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        type: "RETURN",
-        loanId: loan.id,
-        actorId: decoded.userId,
-        notes: isOverdue ? "Devolución con retraso" : "Devolución a tiempo",
-      },
-    });
-
-    return NextResponse.json({ message: "Devolución registrada exitosamente" });
+    return NextResponse.json({ message: "Devolución registrada exitosamente", overdue: result.isOverdue });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "LOAN_NOT_FOUND") return NextResponse.json({ error: "Préstamo no encontrado" }, { status: 404 });
+    if (message === "ALREADY_RETURNED") return NextResponse.json({ error: "Este préstamo ya fue devuelto" }, { status: 409 });
     console.error("Error returning loan:", error);
-    return NextResponse.json(
-      { error: "Error al registrar devolución" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error al registrar devolución" }, { status: 500 });
   }
 }

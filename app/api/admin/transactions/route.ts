@@ -1,48 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { getSessionUser } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get("token")?.value;
+    const session = await getSessionUser(request);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    if (!token) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-
-    if (decoded.role !== "ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
+    // La consulta incluye únicamente campos públicos; nunca se devuelve password.
     const transactions = await prisma.transaction.findMany({
-      include: {
-        actor: true,
+      select: {
+        id: true,
+        type: true,
+        notes: true,
+        createdAt: true,
+        actor: { select: { id: true, name: true, surnames: true, email: true } },
+        reservation: {
+          select: {
+            id: true,
+            user: { select: { id: true, name: true, surnames: true, email: true } },
+            copy: { select: { id: true, code: true, book: { select: { id: true, title: true, author: true } } } },
+          },
+        },
         loan: {
-          include: {
-            copy: {
-              include: {
-                book: true,
-              },
-            },
-            user: true,
+          select: {
+            id: true,
+            user: { select: { id: true, name: true, surnames: true, email: true } },
+            copy: { select: { id: true, code: true, book: { select: { id: true, title: true, author: true } } } },
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
     });
 
     return NextResponse.json({ transactions });
   } catch (error) {
     console.error("Error fetching transactions:", error);
-    return NextResponse.json(
-      { error: "Error al obtener transacciones" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error al obtener transacciones" }, { status: 500 });
   }
 }
