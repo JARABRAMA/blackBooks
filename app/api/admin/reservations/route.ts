@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { getSessionUser } from "@/lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get("token")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-
-    if (decoded.role !== "ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const session = await getSessionUser(request);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (session.role !== "ADMIN") return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
     const reservations = await prisma.reservation.findMany({
       include: {
-        user: true,
+        user: { select: { id: true, name: true, surnames: true, email: true } },
         copy: {
           include: {
             book: true,

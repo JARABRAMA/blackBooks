@@ -25,6 +25,53 @@ function typeTone(type: TransactionType) {
   return "warning" as const;
 }
 
+function DailyActivityChart({ transactions }: { transactions: Transaction[] }) {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const dayTransactions = transactions.filter((tx) => {
+      const created = new Date(tx.createdAt);
+      return created.getFullYear() === date.getFullYear() && created.getMonth() === date.getMonth() && created.getDate() === date.getDate();
+    });
+    return {
+      key,
+      label: date.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", ""),
+      loans: dayTransactions.filter((tx) => tx.type === "LOAN").length,
+      returns: dayTransactions.filter((tx) => tx.type === "RETURN").length,
+    };
+  });
+  const max = Math.max(1, ...days.map((day) => Math.max(day.loans, day.returns)));
+
+  return (
+    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-slate-900">Actividad de los últimos 7 días</h2>
+          <p className="text-sm text-slate-500">Comparación diaria de préstamos y devoluciones.</p>
+        </div>
+        <div className="flex gap-4 text-xs font-medium">
+          <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-teal-600" />Préstamos</span>
+          <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-500" />Devoluciones</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-2" role="img" aria-label="Gráfica de barras de préstamos y devoluciones de los últimos siete días">
+        {days.map((day) => (
+          <div key={day.key} className="flex min-w-0 flex-col items-center gap-2">
+            <div className="flex h-36 w-full items-end justify-center gap-1 rounded-lg bg-slate-50 px-1 pt-2">
+              <div title={`${day.loans} préstamos`} className="w-3 rounded-t bg-teal-600" style={{ height: `${Math.max(day.loans ? 5 : 0, (day.loans / max) * 100)}%` }} />
+              <div title={`${day.returns} devoluciones`} className="w-3 rounded-t bg-indigo-500" style={{ height: `${Math.max(day.returns ? 5 : 0, (day.returns / max) * 100)}%` }} />
+            </div>
+            <span className="text-xs capitalize text-slate-500">{day.label}</span>
+            <span className="text-xs font-semibold text-slate-700">{day.loans + day.returns}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function ReportesPage() {
   const { isDemo } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -65,7 +112,7 @@ export default function ReportesPage() {
   }, [transactions, typeFilter, dateFilter]);
 
   return (
-    <AuthGuard roles={["ADMIN"]}>
+    <AuthGuard roles={["ADMIN", "USER"]}>
       {loading ? (
         <LoadingBlock />
       ) : (
@@ -74,6 +121,23 @@ export default function ReportesPage() {
             title="Reportes / Transacciones"
             description="Historial de préstamos, devoluciones y reservas."
           />
+
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Movimientos registrados</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{transactions.length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Préstamos</p>
+              <p className="mt-1 text-2xl font-bold text-teal-700">{transactions.filter((tx) => tx.type === "LOAN").length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Devoluciones</p>
+              <p className="mt-1 text-2xl font-bold text-indigo-600">{transactions.filter((tx) => tx.type === "RETURN").length}</p>
+            </div>
+          </div>
+
+          <DailyActivityChart transactions={transactions} />
 
           <div className="mb-5 grid gap-3 sm:grid-cols-2">
             <Field label="Tipo">
@@ -121,11 +185,11 @@ export default function ReportesPage() {
                     <Td>
                       <Badge tone={typeTone(tx.type)}>{tx.type}</Badge>
                     </Td>
-                    <Td>{tx.loan?.copy.book.title ?? "—"}</Td>
-                    <Td>{tx.loan?.copy.code ?? "—"}</Td>
+                    <Td>{tx.loan?.copy.book.title ?? tx.reservation?.copy.book.title ?? "—"}</Td>
+                    <Td>{tx.loan?.copy.code ?? tx.reservation?.copy.code ?? "—"}</Td>
                     <Td>
-                      {tx.loan?.user
-                        ? `${tx.loan.user.name} ${tx.loan.user.surnames}`
+                      {tx.loan?.user || tx.reservation?.user
+                        ? `${(tx.loan?.user ?? tx.reservation?.user)?.name} ${(tx.loan?.user ?? tx.reservation?.user)?.surnames}`
                         : "—"}
                     </Td>
                     <Td>

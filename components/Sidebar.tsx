@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 const userLinks = [
   { href: "/catalogo", label: "Catálogo de Libros" },
   { href: "/mis-prestamos", label: "Mis Reservas / Préstamos" },
+  { href: "/reportes", label: "Transacciones" },
 ];
 
 const adminLinks = [
