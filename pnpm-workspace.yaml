@@ -1,7 +1,11 @@
 allowBuilds:
   '@prisma/engines': set this to true or false
+  builds: true
   esbuild: true
   prisma: set this to true or false
   sharp: false
   unrs-resolver: false
   workerd: true
+permissions:
+  builds:
+    skills: true
