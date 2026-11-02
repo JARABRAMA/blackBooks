@@ -167,10 +167,10 @@ importers:
   .:
     dependencies:
       '@prisma/adapter-pg':
-        specifier: ^7.10.1
+        specifier: 7.10.1
         version: 7.10.1
       '@prisma/client':
-        specifier: ^7.10.1
+        specifier: 7.10.1
         version: 7.10.1(prisma@8.0.0-rc.29(@effect/vitest@4.0.3(effect@4.0.3)(vitest@5.0.5(@types/node@20.19.43)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))))(@types/node@20.19.43)(@types/react@19.3.0)(@vercel/nft@1.11.0(supports-color@7.2.0))(hono@4.11.4)(magicast@0.5.5)(pg@8.23.1)(supports-color@7.2.0)(typanion@3.14.0)(typescript@5.9.3)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.5(@types/node@20.19.43)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(ws@8.22.0))(typescript@5.9.3)
       '@types/bcryptjs':
         specifier: ^3.0.0
